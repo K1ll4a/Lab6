@@ -1,0 +1,17 @@
+<PriorityQueue>
+    <item>
+        <name>Example Name</name>
+        <price>123.45</price>
+        <coordinates>
+            <x>1.23</x>
+            <y>4.56</y>
+        </coordinates>
+        <manufactureCost>7.89</manufactureCost>
+        <unitOfMeasure>PCS</unitOfMeasure>
+        <manufacturer>
+            <OrgName>Example Organization</OrgName>
+            <fullName>Example FullName</fullName>
+            <type>TRUST</type>
+        </manufacturer>
+    </item>
+</PriorityQueue>

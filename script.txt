@@ -1,0 +1,12 @@
+add
+Iphone 13
+34
+42
+34535
+42342
+PCS
+Timur
+"Danilevskiy"
+TRUST
+executeScript script.txt
+show
