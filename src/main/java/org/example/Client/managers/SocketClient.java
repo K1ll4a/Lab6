@@ -9,6 +9,8 @@ import org.example.global.facility.Request;
 import org.example.global.facility.Response;
 import org.example.global.tools.MyConsole;
 
+
+
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -21,6 +23,9 @@ public class SocketClient {
     MyConsole console = new MyConsole();
     private String host;
     private int port;
+    public static boolean isLoggedIn = false;
+    private String clientsLogin;
+    private String clientsPassword;
     public SocketClient(String host, int port){
         this.port=port;
         this.host=host;
@@ -49,8 +54,36 @@ public class SocketClient {
 
         console.println("Подключение к серверу успешно установлено.");
         Scanner scanner = new Scanner(System.in);
-        while (scanner.hasNextLine()) {
+        while (true) {
             try {
+                while (!isLoggedIn){
+                    String tryTOlog = scanner.nextLine().trim();
+                    while(true){
+                        try {
+                            String[] tokensLog = (tryTOlog.trim()).split(" " , 3);
+                            String commandToRegistrate = tokensLog[0].trim();
+                            String login = tokensLog[1].trim();
+                            clientsLogin = login;
+                            String password = tokensLog[2].trim();
+                            clientsPassword=password;
+                            if(!commandToRegistrate.equals("registration")&&!commandToRegistrate.equals("login")){
+                                console.println("Неавторизованный пользователь не может использовать команды." +
+                                        "\nИспользуйте registration [ваш логин] [ваш пароль] или login [ваш логин] [ваш пароль]");
+                                break;
+                            }else{
+                                Request request = new Request(commandToRegistrate,null,login,password);
+                                sendRequest(request,socketChannel);
+                                break;
+                            }
+                        }catch (ArrayIndexOutOfBoundsException e){
+                            console.println("Вы еще не авторизовались в системе. Используйте команду registration , если вы впервые на сайте." +
+                                    " Если вы уже зарегистрированы , то используйте команду login\n Форматы ввода команд:\n" +
+                                    "registration [ваш логин] [ваш пароль]\nlogin [ваш логин] [ваш пароль]");
+                            break;
+                        }
+                    }
+                }
+
                 String command = scanner.nextLine().trim();
                 String[] tokens = (command.trim() + " ").split(" ", 2);
                 String command1 = tokens[0];
@@ -65,22 +98,18 @@ public class SocketClient {
                     System.exit(1);
                 }
 
-                if (command1.equals("save")) {
-                    console.println("Вам недоступна данная команда");
-                }
-
-                if (command1.equals("add") || command1.equals("update") || command1.equals("add_if_min") || command1.equals("RemoveGreater")) {
+                if (command1.equals("add") || command1.equals("update_by_id") || command1.equals("add_if_min")) {
                     Mclass mclass = Ask.askMclass(console);
-                    Request request = new Request(command, mclass);
+                    Request request = new Request(command, mclass , clientsLogin , clientsPassword);
                     sendRequest(request, socketChannel);
                 } else if (command1.equals("execute_script")) {
                     try{
-                        Execute_Script.execute(command, socketChannel);
+                        Execute_Script.execute(command, socketChannel ,clientsLogin , clientsPassword);
                     }catch (Exception e){
                         console.println("Непредвиденная ошибка. Возможно вы ввели неправильное название файла");
                     }
                 } else if(!command1.equals("save")){
-                    Request request = new Request(command, null);
+                    Request request = new Request(command, null,clientsLogin , clientsPassword);
                     sendRequest(request, socketChannel);
                 }
             }catch (IOException e){
@@ -148,6 +177,10 @@ public class SocketClient {
             if (responseBytes.length > 0) {
                 try (ObjectInputStream oi = new ObjectInputStream(new ByteArrayInputStream(responseBytes))) {
                     Response answer = (Response) oi.readObject();
+                    boolean result = answer.getResult();
+                    if(result){
+                        isLoggedIn = true;
+                    }
                     return answer.getMessage();
                 } catch (EOFException | StreamCorruptedException e) {
                     // Не удалось десериализовать объект, возможно, не все данные получены

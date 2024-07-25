@@ -2,13 +2,23 @@ package org.example.global.facility;
 
 import java.io.Serializable;
 
-public class Response implements Serializable {
-    private String message;
-    private Object object;
-    public Response(String message) {this.message = message;}
-
-    public String getMessage() {
-        return message;
+public class Response  implements Serializable {
+    private String massage;
+    private boolean result;
+    public Response (String massage){
+        this.massage = massage;
     }
-    
+
+    public Response(String massage , boolean result){
+        this.massage = massage;
+        this.result = result;
+    }
+
+    public String getMessage(){
+        return massage;
+    }
+
+    public boolean getResult(){
+        return result;
+    }
 }

@@ -26,6 +26,8 @@ public class Mclass implements Comparable<Mclass>,Serializable, Validatable {
     private  Long id;
     private java.time.LocalDateTime creationDate;
     private Organization manufacturer;
+    private  int user_id;
+    private String login;
 
     public Mclass(){
 
@@ -42,7 +44,7 @@ public class Mclass implements Comparable<Mclass>,Serializable, Validatable {
 
     }
     @JsonCreator
-    public Mclass(@JsonProperty("name") String name, @JsonProperty("price") Double price, @JsonProperty("coordinates") Coordinates coordinates, @JsonProperty("manufactureCost") float manufactureCost, @JsonProperty("unitOfMeasure") UnitOfMeasure unitOfMeasure, @JsonProperty("manufacturer") Organization manufacturer){
+    public Mclass(@JsonProperty("name") String name, @JsonProperty("price") Double price, @JsonProperty("coordinates") Coordinates coordinates, @JsonProperty("manufactureCost") float manufactureCost, @JsonProperty("unitOfMeasure") UnitOfMeasure unitOfMeasure, @JsonProperty("manufacturer") Organization manufacturer,@JsonProperty("user_id") int user_id,@JsonProperty("login") String login) {
         this.id = ThreadLocalRandom.current().nextLong(1, 1001);
         this.coordinates = coordinates;
         long randomEpochSecond = ThreadLocalRandom.current().nextLong(0, LocalDateTime.now().toEpochSecond(ZoneOffset.UTC));
@@ -54,6 +56,8 @@ public class Mclass implements Comparable<Mclass>,Serializable, Validatable {
         this.manufactureCost = manufactureCost;
         this.unitOfMeasure = unitOfMeasure;
         this.manufacturer = manufacturer;
+        this.user_id = user_id;
+        this.login = login;
 
     }
 
@@ -295,7 +299,7 @@ public class Mclass implements Comparable<Mclass>,Serializable, Validatable {
         Organization manufacturer = new Organization(orgName, fullName, type);
         Coordinates coordinates = new Coordinates(x, y);
 
-        return new Mclass(name, price, coordinates, manufactureCost, unitOfMeasure, manufacturer);
+        return new Mclass(name, price, coordinates, manufactureCost, unitOfMeasure, manufacturer,1,null);
     }
     @Override
     public String toString(){

@@ -20,7 +20,7 @@ public class Ask {
         Float manufactureCost = askManufactureCost(console);
         UnitOfMeasure unitOfMeasure = askUnitOfMeasure(console);
         Organization manufacturer = askOrganization(console);
-        Mclass mclass = new Mclass(name, price,coordinates, manufactureCost,unitOfMeasure, manufacturer);
+        Mclass mclass = new Mclass(name, price,coordinates, manufactureCost,unitOfMeasure, manufacturer,1,null);
         return mclass;
     }
 

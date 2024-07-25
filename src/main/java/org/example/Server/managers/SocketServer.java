@@ -7,30 +7,37 @@ import org.example.global.facility.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 import java.io.*;
 import java.net.InetSocketAddress;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-
-
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class SocketServer {
-    private static final Logger log = LoggerFactory.getLogger(SocketServer.class);
+    public static final Logger log = LoggerFactory.getLogger(SocketServer.class);
     private final CommandRuler commandRuler;
     private Selector selector;
     private InetSocketAddress address;
     private Set<SocketChannel> session;
+    private final ExecutorService readThreadPool;
+    private final ExecutorService sendThreadPool;
 
     public SocketServer(String host, int port, CommandRuler commandRuler) {
         this.address = new InetSocketAddress(host, port);
         this.session = new HashSet<>();
-        this.commandRuler=commandRuler;
+        this.commandRuler = commandRuler;
+        this.readThreadPool = Executors.newFixedThreadPool(10); // количество потоков можно настроить
+        this.sendThreadPool = Executors.newCachedThreadPool();
     }
 
     public void start() throws IOException, ClassNotFoundException {
@@ -49,17 +56,11 @@ public class SocketServer {
                     String[] tokens = (input.trim() + " ").split(" ", 2);
                     tokens[1] = tokens[1].trim();
                     String executingCommand = tokens[0];
-                    var command = commandRuler.getCommands().get("save");
                     var exitCommand = commandRuler.getCommands().get("exit");
-                    if (executingCommand.equals("save")) {
-                        Response serverResponse = command.apply(tokens,null);
-                    }else{
-                        if(executingCommand.equals("exit")){
-                            Response serverResponseSave = command.apply(tokens, null);
-                            Response serverResponseExit = exitCommand.apply(tokens , null);
-                        }else{
-                            log.warn("Внимание! Введенная вами команда отсутствует в базе сервера. Вам доступны следующие две команы : save , exit. Введите любую из них.");
-                        }
+                    if (executingCommand.equals("exit")) {
+                        Response serverResponseExit = exitCommand.apply(tokens, null, null, null);
+                    } else {
+                        log.warn("Внимание! Введенная вами команда отсутствует в базе сервера. Вам доступны следующие две команды: save, exit. Введите любую из них.");
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -69,16 +70,27 @@ public class SocketServer {
             }
         }).start();
 
-        while(true) {
-            // blocking, wait for events
+        while (true) {
             this.selector.select();
-            Iterator keys = this.selector.selectedKeys().iterator();
-            while(keys.hasNext()) {
-                SelectionKey key = (SelectionKey) keys.next();
+            Iterator<SelectionKey> keys = this.selector.selectedKeys().iterator();
+            while (keys.hasNext()) {
+                SelectionKey key = keys.next();
                 keys.remove();
                 if (!key.isValid()) continue;
                 if (key.isAcceptable()) accept(key);
-                else if (key.isReadable()) read(key);
+                else if (key.isReadable()) {
+                    key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
+                    readThreadPool.submit(() -> {
+                        try {
+                            read(key);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }finally {
+                            key.interestOps(key.interestOps() | SelectionKey.OP_READ);
+                            this.selector.wakeup();
+                        }
+                    });
+                }
             }
         }
     }
@@ -92,7 +104,6 @@ public class SocketServer {
         log.info("Подключился новый пользователь: " + channel.socket().getRemoteSocketAddress() + "\n");
     }
 
-
     private void read(SelectionKey key) throws IOException {
         SocketChannel channel = (SocketChannel) key.channel();
         channel.configureBlocking(false);
@@ -101,70 +112,79 @@ public class SocketServer {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
         while (true) {
-            int numRead = channel.read(buffer);
+            try {
+                int numRead = channel.read(buffer);
 
-            if (numRead == -1) {
-                // Клиент закрыл соединение
+                if (numRead == -1) {
+                    // Клиент закрыл соединение
+                    this.session.remove(channel);
+                    log.info("Пользователь отключился: " + channel.socket().getRemoteSocketAddress() + "\n");
+                    key.cancel();
+                    return;
+                }
+
+                if (numRead == 0) {
+                    // Нет данных для чтения
+                    break;
+                }
+
+                buffer.flip();
+                byteArrayOutputStream.write(buffer.array(), 0, buffer.limit());
+                buffer.clear();
+            } catch (SocketException e) {
                 this.session.remove(channel);
-                log.info("Пользователь отключился: " + channel.socket().getRemoteSocketAddress() + "\n");
+                log.info("Пользователь внезапно отключился: " + channel.socket().getRemoteSocketAddress() + "\n");
                 key.cancel();
                 return;
             }
-
-            if (numRead == 0) {
-                // Нет данных для чтения
-                break;
-            }
-
-            buffer.flip();
-            byteArrayOutputStream.write(buffer.array(), 0, buffer.limit());
-            buffer.clear();
         }
 
         byte[] data = byteArrayOutputStream.toByteArray();
         if (data.length > 0) {
-            try (ObjectInputStream oi = new ObjectInputStream(new ByteArrayInputStream(data))) {
-                Request request = (Request) oi.readObject();
-                String gotData = request.getCommandMassage();
-                Mclass gotTicket = request.getMclass();
-                log.info("Получено: " + gotData + " | Ticket:" + gotTicket);
+            new Thread(() -> {
+                try (ObjectInputStream oi = new ObjectInputStream(new ByteArrayInputStream(data))) {
+                    Request request = (Request) oi.readObject();
+                    String gotData = request.getCommandMassage();
+                    Mclass gotMclass = request.getMclass();
+                    String gotLogin = request.getLogin();
+                    String gotPassword = request.getPassword();
+                    log.info("Получено: " + gotData + " | Mclass:" + gotMclass);
 
-                String[] tokens = (gotData.trim() + " ").split(" ", 2);
-                tokens[1] = tokens[1].trim();
-                String executingCommand = tokens[0];
-                commandRuler.addTohistory(executingCommand);
-                var command = commandRuler.getCommands().get(executingCommand);
+                    String[] tokens = (gotData.trim() + " ").split(" ", 2);
+                    tokens[1] = tokens[1].trim();
+                    String executingCommand = tokens[0];
+                    commandRuler.addTohistory(executingCommand);
+                    var command = commandRuler.getCommands().get(executingCommand);
 
-                if (command == null&&!executingCommand.equals("execute_script")) {
-                    sendAnswer(new Response("Команда '" + tokens[0] + "' не найдена. Наберите 'help' для справки\n"), key);
-                    return;
+                    if (command == null && !executingCommand.equals("execute_script")) {
+                        sendAnswer(new Response("Команда '" + tokens[0] + "' не найдена. Наберите 'help' для справки\n"), channel);
+                        return;
+                    }
+
+                    Response response = command.apply(tokens, gotMclass, gotLogin, gotPassword);
+                    sendThreadPool.submit(()->{
+                        sendAnswer(response,channel);
+                    });
+                } catch (ClassNotFoundException | IOException | SQLException e) {
+                    log.error("Ошибка обработки запроса: " + e.getMessage());
                 }
+            }).start();
+        }
+    }
 
-                Response response = command.apply(tokens , gotTicket);
-                sendAnswer(response, key);
-            } catch (ClassNotFoundException e) {
-                log.error("Ошибка обработки запроса: " + e.getMessage());
-            } catch (EOFException | StreamCorruptedException e) {
-                // Не удалось десериализовать объект, возможно, не все данные получены
-                log.error("Получены неполные данные.");
+    public void sendAnswer(Response response, SocketChannel client) {
+        try {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+            objectOutputStream.writeObject(response);
+            objectOutputStream.close();
+            ByteBuffer buffer = ByteBuffer.wrap(byteArrayOutputStream.toByteArray());
+            while (buffer.hasRemaining()) {
+                client.write(buffer);
             }
+            log.info("Ответ клиенту отправлен");
+        } catch (IOException e) {
+            log.error("Ошибка отправки ответа: " + e.getMessage());
         }
     }
-
-
-
-    public void sendAnswer(Response response, SelectionKey key) throws IOException {
-        SocketChannel client = (SocketChannel) key.channel();
-        client.configureBlocking(false);
-
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-        objectOutputStream.writeObject(response);
-        objectOutputStream.close();
-        ByteBuffer buffer = ByteBuffer.wrap(byteArrayOutputStream.toByteArray());
-        while(buffer.hasRemaining()){
-            client.write(buffer);
-        }
-    }
-
 }
