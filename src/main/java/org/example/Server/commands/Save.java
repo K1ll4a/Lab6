@@ -13,13 +13,13 @@ public class Save  extends  Command{
     }
 
     @Override
-    public Response apply(String[] arguments, Mclass mclass){
+    public Response apply(String[] arguments, Mclass mclass,String login , String password){
         if(!arguments[1].isEmpty()){
             console.println("Неправильное количество аргументов!\n" + "Использование: " + getName() + " '");
             console.println("Использование: " + getName() + " '");
             return new Response("");
         }
-        collectionRuler.saveCollection();
+
         console.println("Коллекция сохранена");
         return new Response("");
     }

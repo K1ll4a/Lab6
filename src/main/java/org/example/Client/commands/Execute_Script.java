@@ -46,7 +46,7 @@ public class Execute_Script {
                     }
                 }
                 SocketClient.sendRequest(new Request(mainCommand,new Mclass(org[0], Double.parseDouble(org[1]) , new Coordinates(Float.parseFloat(org[2]),Float.parseFloat(org[3])),
-                        Float.parseFloat(org[4]), UnitOfMeasure.valueOf(org[5]), new Organization(org[6],org[7],OrganizationType.valueOf(org[8]))), login, password),socketChannel);
+                        UnitOfMeasure.valueOf(org[5]),Float.parseFloat(org[4]), new Organization(org[6],org[7],OrganizationType.valueOf(org[8]))), login, password),socketChannel);
             }else {
                 if (line.contains("execute_script")) {
                     File file_new = new File(line.split(" ")[1]);

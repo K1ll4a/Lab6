@@ -8,9 +8,11 @@ public class Exit extends Command{
     }
 
     @Override
-    public Response apply(String[] arguments, Mclass mclass){
+    public Response apply(String[] arguments, Mclass mclass,String login,String password){
         if(!arguments[1].isEmpty()){
-            return new Response("Неправильное количество аргументов!\n" + "Использование: " + getName() + " '");
+            console.println("Неправильное количество аргументов!");
+            console.println("использование '"  +getName() + "'");
+            return new Response("");
         }
         System.out.println("Завершение программы");
         System.exit(1);

@@ -24,7 +24,7 @@ public class Mclass implements Comparable<Mclass>,Serializable, Validatable {
     private String input;
     private UnitOfMeasure unitOfMeasure;
     private  Long id;
-    private java.time.LocalDateTime creationDate;
+    private LocalDateTime creationDate;
     private Organization manufacturer;
     private  int user_id;
     private String login;
@@ -61,7 +61,19 @@ public class Mclass implements Comparable<Mclass>,Serializable, Validatable {
 
     }
 
+    public Mclass(long id, String name, Double price, Coordinates coordinates,String creationDate ,UnitOfMeasure unitOfMeasure,float manufactureCost, Organization manufacturer, int user_id,String login) {
+        this.id = id;
+        this.name = name;
+        this.price = price;
+        this.coordinates = coordinates;
+        this.unitOfMeasure = unitOfMeasure;
+        this.manufactureCost = manufactureCost;
+        this.manufacturer = manufacturer;
+        this.user_id = user_id;
+        this.login = login;
+        this.creationDate = LocalDateTime.parse(creationDate , DateTimeFormatter.ISO_DATE_TIME);;
 
+    }
 
 
     public static class Coordinates implements Serializable{
@@ -244,6 +256,21 @@ public class Mclass implements Comparable<Mclass>,Serializable, Validatable {
     public void setName(String name) {
         this.name = validateName(name);
     }
+    public String getLogin(){
+        return login;
+    }
+
+    public void setUser_id(int user_id){
+        this.user_id =user_id;
+    }
+
+    public int getUser_id(){
+        return user_id;
+    }
+
+    public void setLogin(String login){
+        this.login = login;
+    }
 
     public void setCoordinates(Coordinates coordinates) {
         this.coordinates = coordinates;
@@ -255,6 +282,8 @@ public class Mclass implements Comparable<Mclass>,Serializable, Validatable {
     public Long getId() {
         return id;
     }
+
+
 
     public String getName() {
         return name;

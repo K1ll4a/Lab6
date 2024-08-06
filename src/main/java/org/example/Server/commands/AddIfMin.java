@@ -5,6 +5,8 @@ import org.example.Server.rulers.CollectionRuler;
 import org.example.global.facility.Mclass;
 import org.example.global.facility.Response;
 
+import java.sql.SQLException;
+
 
 public class AddIfMin extends Command{
     private final CollectionRuler collectionRuler;
@@ -15,28 +17,28 @@ public class AddIfMin extends Command{
     }
 
     @Override
-    public Response apply (String[] arguments , Mclass mclass){
+    public Response apply (String[] arguments , Mclass mclass,String login,String password){
         try{
             if (!arguments[1].isEmpty()){
                 return new Response("Неправильное количество аргументов!\n" + "Использование: " + getName() + " '");
             }
-
-            Mclass a = mclass;
+            mclass.setLogin(login);
+            mclass.setUser_id(collectionRuler.getUserid(login));
             var minPrice = minPrice();
-            if(a.getPrice() < minPrice){
-                if(a != null){
-                    collectionRuler.add(a);
-                    
+            if(mclass.getPrice() < minPrice){
+                if(mclass != null && mclass.validate()){
+                    collectionRuler.addToCollection(mclass,login);
                 }else{
                     return new Response("Элемент не добавлен в коллекцию");
                 }
             }else{
-                return new Response("Элемент не добавлен в коллекцию,цена не минимальная (" + a.getPrice() + " > " + minPrice + ")");
+                return new Response("Элемент не добавлен в коллекцию,цена не минимальная (" + mclass.getPrice() + " > " + minPrice + ")");
             }
-            collectionRuler.update();
             return new Response("Элемент успешно добавлен в коллекцию");
-        } catch (Exception e){
-            throw new RuntimeException(e);
+        } catch (SQLException e){
+            return  new Response("Ошибка при добавлении");
+        }catch (Exception e){
+            return new Response("Непредвиденная ошибка при добавлении");
         }
     }
 
